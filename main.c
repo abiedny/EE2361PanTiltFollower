@@ -36,8 +36,9 @@ void setup(void) {
     __builtin_write_OSCCONL(OSCCON | 0x40); // lock   PPS
     
     U1MODE = 0;
-    U1MODEbits.BRGH = 0;
-    U1BRG = 136; // 115200 baud
+    U1MODEbits.BRGH = 1; //needed for tolerable error at 115200 baud
+    U1BRG = 34; // 115200 baud, error 0.79%
+	U1MODEbits.PDSEL = 0b01; //8-bit, even parity
 
     U1MODEbits.UEN = 0;
     U1MODEbits.UARTEN = 1;
