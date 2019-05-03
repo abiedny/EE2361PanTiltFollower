@@ -11,6 +11,9 @@
 
 void setup(void);
 
+int buffer[2];
+int bufptr = 0;
+
 int main(void) {
     setup();
     
@@ -19,6 +22,14 @@ int main(void) {
     setTiltSweep(-90, 90);
     while (1) {
         //setPanAndTilt(0, 0);
+        int i = IFS0bits.U1RXIF;
+        if (IFS0bits.U1RXIF) {
+            IFS0bits.U1RXIF = 0;
+            buffer[bufptr++] = U1RXREG;
+            if (bufptr == 2) {
+                bufptr = 0;
+            }
+        }
     }
     
     return 0;
@@ -30,26 +41,32 @@ void setup(void) {
     setupPanTilt();
     setSweepSpeed(400);
     
-    // Setup UART
-    __builtin_write_OSCCONL(OSCCON & 0xbf); // unlock PPS
-    RPINR18bits.U1RXR = 15;  // Use Pin RP15 (Table 10-2)
-    __builtin_write_OSCCONL(OSCCON | 0x40); // lock   PPS
+    _TRISB6 = 0;  // U1TX output
+    _TRISB10 = 1; // U1RX input
     
-    U1MODE = 0;
-    U1MODEbits.BRGH = 1; //needed for tolerable error at 115200 baud
-    U1BRG = 34; // 115200 baud, error 0.79%
-	U1MODEbits.PDSEL = 0b01; //8-bit, even parity
-
+    U1MODE = 0;  // UEN<1:0> bits control the pins
+    U1MODEbits.BRGH = 0;
+    U1STA = 0;
+    U1BRG = 25; // 38400 baud (check the calculation with the datasheet)
     U1MODEbits.UEN = 0;
     U1MODEbits.UARTEN = 1;
+    U1STAbits.UTXEN = 1;
+    // Peripheral Pin Select
+    __builtin_write_OSCCONL(OSCCON & 0xbf); // unlock PPS
+    _RP6R = 0x0003;  
+    _U1RXR = 10;   //RB10->UART1:U1RX;
+    __builtin_write_OSCCONL(OSCCON | 0x40); // lock   PPS
 
     IFS0bits.U1RXIF = 0;
-    IEC0bits.U1RXIE = 1;
+    //IEC0bits.U1RXIE = 1;
 
     
 }
 
 void __attribute__((__interrupt__, __auto_psv__)) _U1RXInterrupt(void) {
     IFS0bits.U1RXIF = 0;
-    int test = U1RXREG;
+    buffer[bufptr++] = U1RXREG;
+    if (bufptr == 2) {
+        bufptr = 0;
+    }
 }
